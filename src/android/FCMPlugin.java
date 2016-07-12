@@ -13,7 +13,6 @@ import org.json.JSONObject;
 import android.os.Bundle;
 
 import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.iid.FirebaseInstanceId;
 
 import java.util.Map;
 
@@ -22,9 +21,15 @@ public class FCMPlugin extends CordovaPlugin {
 	private static final String TAG = "FCMPlugin";
 	
 	public static CordovaWebView gWebView;
-	public static String notificationCallBack = "FCMPlugin.onNotificationReceived";
+
+	public static String notificationCallBack = "FCMPlugin.onNotificationReceived";	
 	public static Boolean notificationCallBackReady = false;
-	public static Map<String, Object> lastPush = null;
+	public static Map<String, String> lastPush = null;
+
+	//edits
+	public static String idCallBack = "FCMPlugin.onFCMIDReceived";
+	public static Boolean idCallBackReady = false;
+	public static String lastFCMID = null;
 	 
 	public FCMPlugin() {}
 	
@@ -46,20 +51,6 @@ public class FCMPlugin extends CordovaPlugin {
 				//
 				callbackContext.success();
 			}
-			// GET TOKEN //
-			else if (action.equals("getToken")) {
-				cordova.getActivity().runOnUiThread(new Runnable() {
-					public void run() {
-						try{
-							String token = FirebaseInstanceId.getInstance().getToken();
-							callbackContext.success( FirebaseInstanceId.getInstance().getToken() );
-							Log.d(TAG,"\tToken: "+ token);
-						}catch(Exception e){
-							Log.d(TAG,"\tError retrieving token");
-						}
-					}
-				});
-			}
 			// NOTIFICATION CALLBACK REGISTER //
 			else if (action.equals("registerNotification")) {
 				notificationCallBackReady = true;
@@ -70,10 +61,25 @@ public class FCMPlugin extends CordovaPlugin {
 						callbackContext.success();
 					}
 				});
+			}// ID CALLBACK REGISTER //
+			else if (action.equals("getFCMID")) {
+				idCallBackReady = true;
+				cordova.getActivity().runOnUiThread(new Runnable() {
+					public void run() {
+						try{
+							//TODO: Send back the Registration ID.
+							if(lastFCMID != null) FCMPlugin.sendFCMID( lastFCMID );
+							lastFCMID = null;
+							callbackContext.success();
+						}catch(Exception e){
+							callbackContext.error(e.getMessage());
+						}
+					}
+				});
 			}
 			// UN/SUBSCRIBE TOPICS //
 			else if (action.equals("subscribeToTopic")) {
-				cordova.getThreadPool().execute(new Runnable() {
+				cordova.getActivity().runOnUiThread(new Runnable() {
 					public void run() {
 						try{
 							FirebaseMessaging.getInstance().subscribeToTopic( args.getString(0) );
@@ -85,7 +91,7 @@ public class FCMPlugin extends CordovaPlugin {
 				});
 			}
 			else if (action.equals("unsubscribeFromTopic")) {
-				cordova.getThreadPool().execute(new Runnable() {
+				cordova.getActivity().runOnUiThread(new Runnable() {
 					public void run() {
 						try{
 							FirebaseMessaging.getInstance().unsubscribeFromTopic( args.getString(0) );
@@ -120,7 +126,7 @@ public class FCMPlugin extends CordovaPlugin {
 		return true;
 	}
 	
-	public static void sendPushPayload(Map<String, Object> payload) {
+	public static void sendPushPayload(Map<String, String> payload) {
 		Log.d(TAG, "==> FCMPlugin sendPushPayload");
 		Log.d(TAG, "\tnotificationCallBackReady: " + notificationCallBackReady);
 		Log.d(TAG, "\tgWebView: " + gWebView);
@@ -141,6 +147,25 @@ public class FCMPlugin extends CordovaPlugin {
 		} catch (Exception e) {
 			Log.d(TAG, "\tERROR sendPushToView. SAVED NOTIFICATION: " + e.getMessage());
 			lastPush = payload;
+		}
+	}
+	public static void sendFCMID(String fcmID) {
+		Log.d(TAG, "==> FCMPlugin sendFCMID");
+		Log.d(TAG, "\tidCallBackReady: " + idCallBackReady);
+		Log.d(TAG, "\tgWebView: " + gWebView);
+	    try {
+		    
+			String callBack = "javascript:" + idCallBack + "('" + fcmID.toString() + "')";
+			if(idCallBackReady && gWebView != null){
+				Log.d(TAG, "\tSent FCM ID to view: " + callBack);
+				gWebView.sendJavascript(callBack);
+			}else {
+				Log.d(TAG, "\tView not ready. SAVED ID: " + callBack);
+				lastFCMID = fcmID;
+			}
+		} catch (Exception e) {
+			Log.d(TAG, "\tERROR sendPushToView. SAVED ID: " + e.getMessage());
+			lastFCMID = fcmID;
 		}
 	}
 } 

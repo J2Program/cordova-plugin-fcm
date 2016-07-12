@@ -16,6 +16,8 @@ static BOOL notificatorReceptorReady = NO;
 static BOOL appInForeground = YES;
 
 static NSString *notificationCallback = @"FCMPlugin.onNotificationReceived";
+static NSString *FCMIDCallback = @"FCMPlugin.onFCMIDReceived";
+
 static FCMPlugin *fcmPluginInstance;
 
 + (FCMPlugin *) fcmPlugin {
@@ -36,18 +38,6 @@ static FCMPlugin *fcmPluginInstance;
     
 }
 
-// GET TOKEN //
-- (void) getToken:(CDVInvokedUrlCommand *)command 
-{
-    NSLog(@"get Token");
-    [self.commandDelegate runInBackground:^{
-        NSString* token = [[FIRInstanceID instanceID] token];
-        CDVPluginResult* pluginResult = nil;
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:token];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-}
-
 // UN/SUBSCRIBE TOPIC //
 - (void) subscribeToTopic:(CDVInvokedUrlCommand *)command 
 {
@@ -59,6 +49,7 @@ static FCMPlugin *fcmPluginInstance;
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:topic];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
+    
 }
 
 - (void) unsubscribeFromTopic:(CDVInvokedUrlCommand *)command 
@@ -71,6 +62,7 @@ static FCMPlugin *fcmPluginInstance;
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:topic];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
+    
 }
 
 - (void) registerNotification:(CDVInvokedUrlCommand *)command
@@ -86,13 +78,36 @@ static FCMPlugin *fcmPluginInstance;
     CDVPluginResult* pluginResult = nil;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    
 }
+
+//edited above 1
+- (void) getFCMID:(CDVInvokedUrlCommand *)command
+{
+    NSLog(@"view registered for FCM ID");
+    
+    notificatorReceptorReady = YES;
+    NSString* lastFCMID = [AppDelegate getLastFCMID];
+    NSLog(@"trackFCM lastFCMID %@", lastFCMID);
+
+    if (lastFCMID != nil) {
+        [FCMPlugin.fcmPlugin notifyOfFCMID:lastFCMID];
+    }
+    
+    CDVPluginResult* pluginResult = nil;
+    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    
+}
+
+
 
 -(void) notifyOfMessage:(NSData *)payload
 {
     NSString *JSONString = [[NSString alloc] initWithBytes:[payload bytes] length:[payload length] encoding:NSUTF8StringEncoding];
-    NSString * notifyJS = [NSString stringWithFormat:@"%@(%@);", notificationCallback, JSONString];
-    NSLog(@"stringByEvaluatingJavaScriptFromString %@", notifyJS);
+    NSString * notifyJS = [NSString stringWithFormat:@"%@(%@);", notificationCallback, JSONString]; 
+
+    NSLog(@"trackFCM stringByEvaluatingJavaScriptFromString %@", notifyJS);
     
     if ([self.webView respondsToSelector:@selector(stringByEvaluatingJavaScriptFromString:)]) {
         [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:notifyJS];
@@ -100,6 +115,28 @@ static FCMPlugin *fcmPluginInstance;
         [self.webViewEngine evaluateJavaScript:notifyJS completionHandler:nil];
     }
 }
+
+//edited above 1
+
+-(void) notifyOfFCMID:(NSString *)FCMID
+{
+    NSString * notifyJS = [NSString stringWithFormat:@"%@('%@');", FCMIDCallback, FCMID];
+    NSLog(@"trackFCM stringByEvaluatingJavaScriptFromString %@", notifyJS);
+    
+    if (FCMID != nil) {
+         NSLog(@"trackFCM if FCMID %@", FCMID);
+        if ([self.webView respondsToSelector:@selector(stringByEvaluatingJavaScriptFromString:)]) {
+            NSLog(@"trackFCM if in send to js");
+            [(UIWebView *)self.webView stringByEvaluatingJavaScriptFromString:notifyJS];
+        } else {
+             NSLog(@"trackFCM else in send to js");
+            [self.webViewEngine evaluateJavaScript:notifyJS completionHandler:nil];
+        }
+    }else{
+         NSLog(@"trackFCM else FCMID %@", FCMID);
+    }
+}
+
 
 -(void) appEnterBackground
 {

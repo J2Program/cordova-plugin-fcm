@@ -15,6 +15,7 @@
 @implementation AppDelegate (MCPlugin)
 
 static NSData *lastPush;
+static NSString *lastFCMID;
 
 //Method swizzling
 + (void)load
@@ -68,23 +69,14 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
     // Pring full message.
     NSLog(@"%@", userInfo);
     NSError *error;
-    
-    NSDictionary *userInfoMutable = [userInfo mutableCopy];
-    
-	//USER NOT TAPPED NOTIFICATION
+    NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfo
+                                                       options:0
+                                                         error:&error];
     if (application.applicationState == UIApplicationStateActive) {
-        [userInfoMutable setValue:@(NO) forKey:@"wasTapped"];
         NSLog(@"app active");
-        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfoMutable
-                                                           options:0
-                                                             error:&error];
         [FCMPlugin.fcmPlugin notifyOfMessage:jsonData];
-    // app is in background or in stand by (NOTIFICATION WILL BE TAPPED)
+        // app is in background or in stand by
     }else{
-        [userInfoMutable setValue:@(YES) forKey:@"wasTapped"];
-        NSData *jsonData = [NSJSONSerialization dataWithJSONObject:userInfoMutable
-                                                           options:0
-                                                             error:&error];
         NSLog(@"APP WAS CLOSED DURING PUSH RECEPTION Saved data: %@", jsonData);
         lastPush = jsonData;
     }
@@ -102,8 +94,14 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
     NSString *refreshedToken = [[FIRInstanceID instanceID] token];
     NSLog(@"InstanceID token: %@", refreshedToken);
 
+
     // Connect to FCM since connection may have failed when attempted before having a token.
     [self connectToFcm];
+
+    lastFCMID = refreshedToken;
+    if (lastFCMID != nil) {
+        [FCMPlugin.fcmPlugin notifyOfFCMID:lastFCMID];
+    }    
 
     // TODO: If necessary send token to appliation server.
 }
@@ -119,6 +117,14 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
             NSLog(@"Connected to FCM.");
             [[FIRMessaging messaging] subscribeToTopic:@"/topics/ios"];
             [[FIRMessaging messaging] subscribeToTopic:@"/topics/all"];
+
+            /** 
+            Store the token for sending to app
+            when the app has already got it once 
+            */
+            NSString *refreshedToken = [[FIRInstanceID instanceID] token];
+            NSLog(@"already registered : InstanceID token: %@", refreshedToken);
+            lastFCMID = refreshedToken;
         }
     }];
 }
@@ -141,10 +147,19 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
 }
 // [END disconnect_from_fcm]
 
+
+
 +(NSData*)getLastPush
 {
     NSData* returnValue = lastPush;
     lastPush = nil;
+    return returnValue;
+}
+
++(NSString*)getLastFCMID
+{
+    NSString* returnValue = lastFCMID;
+    lastFCMID = nil;
     return returnValue;
 }
 
