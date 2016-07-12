@@ -101,7 +101,7 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler
     lastFCMID = refreshedToken;
     if (lastFCMID != nil) {
         [FCMPlugin.fcmPlugin notifyOfFCMID:lastFCMID];
-    }    
+    }       
 
     // TODO: If necessary send token to appliation server.
 }

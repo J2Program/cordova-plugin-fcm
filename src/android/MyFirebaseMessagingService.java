@@ -33,12 +33,19 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         // If the application is in the foreground handle both data and notification messages here.
         // Also if you intend on generating your own notifications as a result of a received FCM
         // message, here is where that should be initiated. See sendNotification method below.
-        Log.d(TAG, "==> MyFirebaseMessagingService onMessageReceived");
-        Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
-        Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
-        Log.d(TAG, "\tNotification Data: " + remoteMessage.getData().toString());
-        FCMPlugin.sendPushPayload(remoteMessage.getData());
-        sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody(), remoteMessage.getNotification().getIcon(), remoteMessage.getData());
+        if(remoteMessage.getNotification())
+        {                        
+            Log.d(TAG, "==> The Notification has come from FCM ");
+
+            Log.d(TAG, "==> MyFirebaseMessagingService onMessageReceived");
+            Log.d(TAG, "\tNotification Title: " + remoteMessage.getNotification().getTitle());
+            Log.d(TAG, "\tNotification Message: " + remoteMessage.getNotification().getBody());
+            Log.d(TAG, "\tNotification Data: " + remoteMessage.getData().toString());
+            FCMPlugin.sendPushPayload(remoteMessage.getData());
+            sendNotification(remoteMessage.getNotification().getTitle(), remoteMessage.getNotification().getBody(), remoteMessage.getNotification().getIcon(), remoteMessage.getData());
+        }else{
+            Log.d(TAG, "==> The Notification has come from OneSignal ");
+        }
     }
     // [END receive_message]
     private int getNotificationIcon() {
